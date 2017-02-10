@@ -44,7 +44,7 @@ class LoadData(object):
 
         channelObjs = tdmsFile.group_channels(groupNames[0])
 
-        channelProps = [obj.properties for obj in channelObjs]
+        #channelProps = [obj.properties for obj in channelObjs]
 
         # get names of channels
         channelNames = [obj.channel for obj in channelObjs]
@@ -57,7 +57,7 @@ class LoadData(object):
         out['filename'] = fileName
         out['starttime'] = startTime
         out['dt'] = groupProps['wf_increment']
-        out['channels'] = data
+        out['channels'] = data #channels names are in pandas columns
         return out
 
 if __name__ == '__main__':

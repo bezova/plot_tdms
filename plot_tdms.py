@@ -34,8 +34,9 @@ class View(QtBaseClass):
         self.ui.setupUi(self)
 
         self.model = model
+        #register to model function to update plots
         self.model.update_plots = self.update_plots
-        self.loadData = LoadData()
+        self.loadData = LoadData() #class to load tdms
 
         pg.setConfigOptions(antialias=True)
         #set parameters (need to moove to some data load class)
@@ -53,12 +54,16 @@ class View(QtBaseClass):
         pgLayoutWidget = pg.GraphicsLayoutWidget()
         self.ui.verticalLayout.addWidget(pgLayoutWidget)
         #do not need setLayout if created by designer
-        #self.ui.centralwidget.setLayout(self.ui.plot_verticalLayout) 
+        #self.ui.centralwidget.setLayout(self.ui.plot_verticalLayout)
+
         # set plot #1
-        pl1 = pgLayoutWidget.addPlot(title='Ch 1', name='CH1')
+        pl1 = pgLayoutWidget.addPlot(name='CH1')
         pl1.setLabel('left', 'P', units='psi')
         pl1.showGrid(x=True, y=True)
         self.curvePl1 = pl1.plot(pen=(255, 0, 0), name="CH1")
+        #add legend
+        self.pl1Legend = pl1.addLegend()
+        self.pl1LegenNamesList = []
 
         # set plot #2
         pgLayoutWidget.nextRow()
@@ -66,6 +71,9 @@ class View(QtBaseClass):
         pl2.setLabel('left', 'P', units='psi')
         pl2.showGrid(x=True, y=True)
         self.curvePl2 = pl2.plot(pen=(0, 255, 0), name="CH2")
+        # add legend
+        self.pl2Legend = pl2.addLegend()
+        self.pl2LegenNamesList = []
         #link X axis between pl1 and pl2
         pl2.setXLink(pl1)
 
@@ -78,6 +86,12 @@ class View(QtBaseClass):
         pl3.showGrid(x=True, y=True)
         self.curvePl3_1 = pl3.plot(pen=(255, 0, 0), name="CH1")
         self.curvePl3_2 = pl3.plot(pen=(0, 255, 0), name="CH2")
+        #set downsamplinfg here or while updating data (if here ->can set auto)
+        #self.curvePl3_1.setDownsampling(ds=4)
+        #self.curvePl3_2.setDownsampling(ds=4)
+        self.pl3Legend = pl3.addLegend()
+        self.pl3LegenNamesList = []
+
 
         #add linearRegion to plot #3
         self.linearRegion = pg.LinearRegionItem()
@@ -127,30 +141,57 @@ class View(QtBaseClass):
             self.model.generate_curve()
 
     def update_plots(self, data):
-        dat1 = data.values[:,0][::4]
+        dat1 = data.values[:,0][::4] #decimate to approx 50Hz (200/4)
+        name1, name2 = data.columns
         dat2 = data.values[:,1][::4]
         self.curvePl1.setData(dat1)
         self.curvePl2.setData(dat2)
-        self.curvePl3_1.setData(dat1)
-        self.curvePl3_2.setData(dat2)
-        
+        self.curvePl3_1.setData(dat1, name=name1)
+        self.curvePl3_2.setData(dat2, name=name2)
+
+        #clear legend if already existed
+        for name in self.pl1LegenNamesList:
+            self.pl1Legend.removeItem(name)
+        self.pl1LegenNamesList = []
+
+        for name in self.pl2LegenNamesList:
+            self.pl2Legend.removeItem(name)
+        self.pl2LegenNamesList = []
+
+        for name in self.pl3LegenNamesList:
+            self.pl3Legend.removeItem(name)
+        self.pl3LegenNamesList = []
+
+        #add items to legend and remember their names to be able to remove later
+        self.pl1Legend.addItem(self.curvePl1, name1)
+        self.pl1LegenNamesList = [name1]
+
+        self.pl2Legend.addItem(self.curvePl2, name2)
+        self.pl2LegenNamesList = [name2]
+
+        self.pl3Legend.addItem(self.curvePl3_1, name1)
+        self.pl3Legend.addItem(self.curvePl3_2, name2)
+        self.pl3LegenNamesList = [name1, name2]
+
         dataLen = len(dat1)
         #self.linearRegion.setRegion([0, dataLen-1])
         self.linearRegion.setBounds([0, dataLen-1])
 
 class Model(object):
     def __init__(self):
-        self.update_plots = None #placeholder will be referenced by View
+        self.update_plots = None #placeholder will have reference to View
         self.data = None #placeholder for data loaded
 
     def generate_random(self):
-        nPoints = 1000
+        #generates random data for initial demo plot
+        nPoints = 10000
         dat1 = 0.01*np.random.rand(nPoints)
         dat2 = np.random.rand(nPoints)+10.
         data = pd.DataFrame({'col1': dat1, 'col2': dat2})
-
         self.update_plots(data)
+
     def generate_curve(self):
+        #send real data to plot
         self.update_plots(self.data['channels'])
 
 class App(QApplication):
