@@ -33,21 +33,37 @@ class LoadData(object):
 
         groupNames = tdmsFile.groups()
         groupObj = tdmsFile.object(groupNames[0])
-
-        # get data properties (incriment, startTime string)
         groupProps = groupObj.properties
-        timeFormat = '%Y_%m_%d_%H_%M_%S.%f'
 
-        startTime = pd.to_datetime(groupProps['wf_start_time'],
-                                   format=timeFormat)
-        # use startTime.date .seconds etc to get details
+        if len(groupProps) != 0:
+            # open and read TDMS file format of year 2016
+            # incriment
+            incriment = groupProps['wf_increment']
+            # start time
+            timeFormat = '%Y_%m_%d_%H_%M_%S.%f'
+            startTime = pd.to_datetime(groupProps['wf_start_time'], format=timeFormat)
+            # use startTime.date .seconds etc to get details
 
-        channelObjs = tdmsFile.group_channels(groupNames[0])
+            # get names of channels
+            channelObjs = tdmsFile.group_channels(groupNames[0])
+            channelNames = [obj.channel for obj in channelObjs]
+            # will also work for 2015
 
-        #channelProps = [obj.properties for obj in channelObjs]
+        else:
+            # format of year 2015
+            channelObjs = tdmsFile.group_channels(groupNames[0])
+            channelProps = [obj.properties for obj in channelObjs]
 
-        # get names of channels
-        channelNames = [obj.channel for obj in channelObjs]
+            # get names of channels
+            channelNames = [cP['NI_ChannelName'] for cP in channelProps]
+
+            # incriment
+            incriment = channelProps[0]['wf_increment']
+
+            # start time (from properties of first channel)
+            timeFormat = '%Y_%m_%d_%H_%M_%S.%f'
+            startTime = pd.to_datetime(channelProps[0]['wf_start_time'],
+                                       format=timeFormat)
 
         data = tdmsFile.as_dataframe(absolute_time=False)
         # rename data columns to channel names
@@ -56,7 +72,7 @@ class LoadData(object):
         out = {}
         out['filename'] = fileName
         out['starttime'] = startTime
-        out['dt'] = groupProps['wf_increment']
+        out['dt'] = incriment
         out['channels'] = data #channels names are in pandas columns
         return out
 
